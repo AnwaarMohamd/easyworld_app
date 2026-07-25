@@ -55,13 +55,13 @@ class CharacterCard extends StatelessWidget {
                       width: 90,
                       height: 90,
                       fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(
-                        color: AppColors.primary.withOpacity(0.1),
+                      placeholder: (context, url) => Container(
+                        color: AppColors.primary.withValues(alpha: 0.1),
                         child: const Center(
                           child: CircularProgressIndicator(strokeWidth: 2),
                         ),
                       ),
-                      errorWidget: (_, __, ___) => const Icon(Icons.broken_image),
+                      errorWidget: (context, url, error) => const Icon(Icons.broken_image),
                     ),
                   ),
                 ),

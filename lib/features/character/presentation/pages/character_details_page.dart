@@ -69,51 +69,58 @@ class CharacterDetailsPage extends StatelessWidget {
                     character.name,
                     style: AppTextStyles.headingLarge,
                   ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Row(
+                  const SizedBox(height: AppSpacing.md),
+                  
+                  // Status Chip using Material 3
+                  Wrap(
+                    spacing: AppSpacing.sm,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.sm,
-                          vertical: 4,
+                      Chip(
+                        avatar: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: statusColor,
+                            shape: BoxShape.circle,
+                          ),
                         ),
-                        decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: statusColor,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: AppSpacing.xs),
-                            Text(
-                              character.status,
-                              style: AppTextStyles.bodyMedium.copyWith(
-                                color: statusColor,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
+                        label: Text(character.status),
+                        backgroundColor: statusColor.withValues(alpha: 0.15),
+                        labelStyle: AppTextStyles.label.copyWith(
+                          color: statusColor,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Text(
-                        '•  ${character.species}',
-                        style: AppTextStyles.title.copyWith(
-                          color: AppColors.lightTextSecondary,
+                      Chip(
+                        label: Text(character.species),
+                        backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                        labelStyle: AppTextStyles.label.copyWith(
+                          color: AppColors.primary,
                         ),
                       ),
                     ],
                   ),
+                  const SizedBox(height: AppSpacing.xxl),
+
+                  // Location Section
+                  _buildInfoSection(
+                    context,
+                    'Location',
+                    character.location,
+                    Icons.location_on_rounded,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+
+                  // Origin Section
+                  _buildInfoSection(
+                    context,
+                    'Origin',
+                    character.origin,
+                    Icons.public_rounded,
+                  ),
                   const SizedBox(height: AppSpacing.xl),
 
-                  // Info Cards Grid
+                  // Character Info Grid
                   Text(
                     'Character Info',
                     style: AppTextStyles.headingMedium,
@@ -139,8 +146,77 @@ class CharacterDetailsPage extends StatelessWidget {
                       ),
                     ],
                   ),
+                  const SizedBox(height: AppSpacing.md),
+                  
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _InfoTile(
+                          icon: Icons.location_on_rounded,
+                          label: 'Origin',
+                          value: character.origin,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: _InfoTile(
+                          icon: Icons.public_rounded,
+                          label: 'Location',
+                          value: character.location,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoSection(
+    BuildContext context,
+    String title,
+    String value,
+    IconData icon,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? AppColors.darkBorder
+              : AppColors.lightBorder,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: AppColors.primary, size: 28),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: AppTextStyles.label.copyWith(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.lightTextSecondary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: AppTextStyles.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
         ],
