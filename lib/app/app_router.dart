@@ -14,7 +14,7 @@ class AppRouter {
       ),
       GoRoute(
         path: '/details',
-        builder: (context, state) => const CharacterDetailsPage(),
+        builder: (context, state) => CharacterDetailsPage(character: state.extra as dynamic),
       ),
     ],
   );

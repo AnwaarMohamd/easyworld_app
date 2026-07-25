@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:eazyworld_app/features/character/data/datasources/character_remote_data_source.dart';
 import 'package:eazyworld_app/features/character/data/repositories/character_repository_impl.dart';
 import 'package:eazyworld_app/features/character/domain/repositories/character_repository.dart';
+import 'package:eazyworld_app/features/character/presentation/cubit/character_cubit.dart';
 import 'package:get_it/get_it.dart';
 
 import '../network/dio_client.dart';
@@ -14,8 +15,6 @@ Future<void> setupInjector() async {
 
   sl.registerLazySingleton(NetworkInfo.new);
 
-  sl.registerLazySingleton<Dio>(DioClient.create);
-
   sl.registerLazySingleton<CharacterRemoteDataSource>(
     () => CharacterRemoteDataSource(sl()),
   );
@@ -23,4 +22,8 @@ Future<void> setupInjector() async {
   sl.registerLazySingleton<CharacterRepository>(
     () => CharacterRepositoryImpl(sl()),
   );
+
+  sl.registerFactory(
+  () => CharacterCubit(sl()),
+);
 }

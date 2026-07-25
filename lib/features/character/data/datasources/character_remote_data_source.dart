@@ -13,15 +13,17 @@ class CharacterRemoteDataSource {
     String? name,
     String? status,
     String? gender,
+    CancelToken? cancelToken,
   }) async {
     final response = await _dio.get(
       ApiConstants.characters,
       queryParameters: {
         'page': page,
         if (name != null && name.isNotEmpty) 'name': name,
-        if (status != null) 'status': status,
-        if (gender != null) 'gender': gender,
+        if (status != null && status.isNotEmpty) 'status': status,
+        if (gender != null && gender.isNotEmpty) 'gender': gender,
       },
+      cancelToken: cancelToken,
     );
 
     return CharactersResponseModel.fromJson(response.data);

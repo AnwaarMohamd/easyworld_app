@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+
 import '../../data/models/characters_response_model.dart';
 
 abstract class CharacterRepository {
@@ -6,5 +8,6 @@ abstract class CharacterRepository {
     String? name,
     String? status,
     String? gender,
+    CancelToken? cancelToken,
   });
 }
