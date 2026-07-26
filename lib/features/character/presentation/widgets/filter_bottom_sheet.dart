@@ -7,19 +7,15 @@ import '../../../../core/theme/app_text_styles.dart';
 class FilterBottomSheet extends StatefulWidget {
   final String? initialStatus;
   final String? initialGender;
-  final ValueChanged<String?> onStatusChanged;
-  final ValueChanged<String?> onGenderChanged;
+  final Function(String?, String?) onApply;
   final VoidCallback onClear;
-  final VoidCallback onApply;
 
   const FilterBottomSheet({
     super.key,
     this.initialStatus,
     this.initialGender,
-    required this.onStatusChanged,
-    required this.onGenderChanged,
-    required this.onClear,
     required this.onApply,
+    required this.onClear,
   });
 
   @override
@@ -192,9 +188,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           child: ElevatedButton(
             onPressed: hasFilters
                 ? () {
-                    widget.onStatusChanged(_selectedStatus);
-                    widget.onGenderChanged(_selectedGender);
-                    widget.onApply();
+                    widget.onApply(_selectedStatus, _selectedGender);
                     Navigator.pop(context);
                   }
                 : null,

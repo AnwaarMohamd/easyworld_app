@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:excel/excel.dart';
 import 'package:intl/intl.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../features/character/data/models/character_model.dart';
@@ -70,6 +71,18 @@ class ExcelExportService {
       return filePath;
     } catch (e) {
       rethrow;
+    }
+  }
+
+  static Future<OpenResult> openFile(String filePath) async {
+    try {
+      final file = File(filePath);
+      if (await file.exists()) {
+        return await OpenFilex.open(filePath);
+      }
+      return OpenResult(type: ResultType.fileNotFound);
+    } catch (e) {
+      return OpenResult(type: ResultType.permissionDenied);
     }
   }
 }

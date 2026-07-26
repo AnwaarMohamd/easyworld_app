@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain/repositories/character_repository.dart';
+import '../../data/models/character_model.dart';
 import 'character_state.dart';
 
 class CharacterCubit extends Cubit<CharacterState> {
@@ -19,8 +20,8 @@ class CharacterCubit extends Cubit<CharacterState> {
     bool isRefresh = false,
     bool isRetry = false,
   }) async {
-    // Prevent concurrent requests during pagination
-    if (_isLoading && !isRetry) return;
+    // Prevent concurrent requests during pagination (but allow refresh/retry)
+    if (_isLoading && !isRefresh && !isRetry) return;
     
     // Don't request if max reached and not refreshing/retrying
     if (state.hasReachedMax && !isRefresh && !isRetry) return;
@@ -108,8 +109,10 @@ class CharacterCubit extends Cubit<CharacterState> {
     emit(
       state.copyWith(
         search: value,
+        characters: [], // Clear list immediately
         currentPage: 1,
         hasReachedMax: false,
+        status: CharacterStatus.loading,
         errorMessage: null,
       ),
     );
@@ -161,6 +164,24 @@ class CharacterCubit extends Cubit<CharacterState> {
     await getCharacters(isRefresh: true);
   }
 
+  void applyFilters(String? status, String? gender) async {
+    _currentCancelToken?.cancel('Filters applied');
+    _currentCancelToken = CancelToken();
+    
+    emit(
+      state.copyWith(
+        statusFilter: status,
+        genderFilter: gender,
+        currentPage: 1,
+        hasReachedMax: false,
+        characters: [],
+        errorMessage: null,
+      ),
+    );
+    
+    await getCharacters(isRefresh: true);
+  }
+
   void clearFilters() async {
     _currentCancelToken?.cancel('Filters cleared');
     _currentCancelToken = CancelToken();
@@ -180,7 +201,49 @@ class CharacterCubit extends Cubit<CharacterState> {
     await getCharacters(isRefresh: true);
   }
 
+  void clearSearch() {
+    emit(
+      state.copyWith(
+        search: '',
+        currentPage: 1,
+        hasReachedMax: false,
+        characters: [],
+        errorMessage: null,
+      ),
+    );
+    
+    getCharacters(isRefresh: true);
+  }
+
   Future<void> retryLastPage() => getCharacters(isRetry: true);
+
+  Future<List<CharacterModel>> getAllCharactersForExport() async {
+    final allCharacters = <CharacterModel>[];
+    int currentPage = 1;
+    bool hasMore = true;
+    CancelToken cancelToken = CancelToken();
+
+    try {
+      while (hasMore) {
+        final response = await _repository.getCharacters(
+          page: currentPage,
+          name: state.search.isEmpty ? null : state.search,
+          status: state.statusFilter,
+          gender: state.genderFilter,
+          cancelToken: cancelToken,
+        );
+
+        allCharacters.addAll(response.characters);
+        hasMore = response.hasNextPage;
+        currentPage++;
+      }
+
+      return allCharacters;
+    } catch (e) {
+      // If error occurs, return whatever we've collected so far
+      return allCharacters;
+    }
+  }
 
   String _parseErrorMessage(dynamic error) {
     final errorString = error.toString();

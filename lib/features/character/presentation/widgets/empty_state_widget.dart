@@ -10,6 +10,7 @@ class EmptyStateWidget extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onRetry;
   final String? retryLabel;
+  final bool showClearSearch;
 
   const EmptyStateWidget({
     super.key,
@@ -18,6 +19,7 @@ class EmptyStateWidget extends StatelessWidget {
     this.icon = Icons.search_off,
     this.onRetry,
     this.retryLabel,
+    this.showClearSearch = false,
   });
 
   @override
@@ -44,10 +46,19 @@ class EmptyStateWidget extends StatelessWidget {
               message,
               textAlign: TextAlign.center,
               style: AppTextStyles.body.copyWith(
-                color: AppColors.lightTextSecondary,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.lightTextSecondary,
               ),
             ),
-            if (onRetry != null) ...[
+            if (showClearSearch) ...[
+              const SizedBox(height: AppSpacing.lg),
+              ElevatedButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.clear_rounded),
+                label: const Text('Clear Search'),
+              ),
+            ] else if (onRetry != null) ...[
               const SizedBox(height: AppSpacing.lg),
               ElevatedButton.icon(
                 onPressed: onRetry,

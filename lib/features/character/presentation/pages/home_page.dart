@@ -6,7 +6,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/excel_export_service.dart';
-import '../../data/models/character_model.dart';
 import '../cubit/character_cubit.dart';
 import '../cubit/character_state.dart';
 import '../widgets/character_card.dart';
@@ -84,62 +83,150 @@ class _HomeViewState extends State<HomeView> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => FilterBottomSheet(
-        initialStatus: state.statusFilter,
-        initialGender: state.genderFilter,
-        onStatusChanged: (status) {
-          cubit.setStatusFilter(status);
-          Navigator.pop(context);
-        },
-        onGenderChanged: (gender) {
-          cubit.setGenderFilter(gender);
-          Navigator.pop(context);
-        },
-        onClear: () {
-          cubit.clearFilters();
-          Navigator.pop(context);
-        },
-        onApply: () {
-          Navigator.pop(context);
-        },
+      builder: (_) => BlocProvider.value(
+        value: cubit,
+        child: FilterBottomSheet(
+          initialStatus: state.statusFilter,
+          initialGender: state.genderFilter,
+          onApply: (status, gender) {
+            cubit.applyFilters(status, gender);
+          },
+          onClear: () {
+            cubit.clearFilters();
+          },
+        ),
       ),
     );
   }
 
-  Future<void> _exportToExcel(List<CharacterModel> characters) async {
+  Future<void> _exportToExcel() async {
     final messenger = ScaffoldMessenger.of(context);
+    final cubit = context.read<CharacterCubit>();
+    
+    // Show confirmation dialog
+    final shouldExport = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: const Icon(Icons.download_rounded, size: 48, color: AppColors.primary),
+        title: const Text('Export to Excel'),
+        content: const Text(
+          'An Excel file will be generated and saved on your device. '
+          'This may take a moment depending on the number of characters.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Export'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldExport != true) return;
+
+    // Show loading dialog
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Exporting characters...'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     try {
-      final filePath = await ExcelExportService.exportCharactersToExcel(characters);
-      if (filePath != null) {
+      // Fetch all characters from all pages
+      final allCharacters = await cubit.getAllCharactersForExport();
+      
+      // Export to Excel
+      final filePath = await ExcelExportService.exportCharactersToExcel(allCharacters);
+      
+      // Close loading dialog
+      if (mounted) {
+        Navigator.pop(context);
+      }
+
+      if (filePath != null && mounted) {
+        // Show success dialog
+        final shouldOpen = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            icon: const Icon(Icons.check_circle_rounded, size: 48, color: AppColors.success),
+            title: const Text('Export Successful'),
+            content: const Text(
+              'Your characters have been exported to Excel successfully.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Close'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Open File'),
+              ),
+            ],
+          ),
+        );
+
+        if (shouldOpen == true && mounted) {
+          final result = await ExcelExportService.openFile(filePath);
+          
+          if (mounted) {
+            if (result.type.toString().contains('done')) {
+              // File opened successfully
+              debugPrint('File opened successfully');
+            } else if (result.type.toString().contains('fileNotFound')) {
+              messenger.showSnackBar(
+                const SnackBar(
+                  content: Text('File not found. Please try exporting again.'),
+                  backgroundColor: AppColors.error,
+                ),
+              );
+            } else {
+              // Show friendly message for other errors
+              messenger.showSnackBar(
+                const SnackBar(
+                  content: Text('Unable to open file. Please check your file manager.'),
+                  backgroundColor: AppColors.error,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Close loading dialog if still open
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+      
+      if (mounted) {
         messenger.showSnackBar(
           SnackBar(
-            content: const Text('Characters exported successfully.'),
-            backgroundColor: AppColors.success,
-            duration: const Duration(seconds: 2),
-            action: SnackBarAction(
-              label: 'Open',
-              textColor: Colors.white,
-              onPressed: () {
-                // File open functionality can be added here if needed
-                // For now, just show that the action was triggered
-                messenger.showSnackBar(
-                  const SnackBar(
-                    content: Text('File saved to your documents folder'),
-                    duration: Duration(seconds: 1),
-                  ),
-                );
-              },
-            ),
+            content: const Text('Export failed. Please try again.'),
+            backgroundColor: AppColors.error,
           ),
         );
       }
-    } catch (e) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: const Text('Export failed. Please try again.'),
-          backgroundColor: AppColors.error,
-        ),
-      );
     }
   }
 
@@ -151,159 +238,156 @@ class _HomeViewState extends State<HomeView> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
       appBar: AppBar(
-        title: Text('Rick & Morty', style: AppTextStyles.headingLarge),
+        title: Text(
+          'Rick & Morty',
+          style: AppTextStyles.headingLarge.copyWith(
+            color: isDarkMode ? Colors.white : AppColors.lightTextPrimary,
+          ),
+        ),
         elevation: 0,
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         surfaceTintColor: Colors.transparent,
         actions: [
           BlocBuilder<CharacterCubit, CharacterState>(
             builder: (context, state) {
-              final hasFilters = state.statusFilter != null || state.genderFilter != null;
-              return Row(
-                children: [
-                  IconButton(
-                    onPressed: () => _showFilterSheet(context, state),
-                    icon: Badge(
-                      isLabelVisible: hasFilters,
-                      label: const Text('1'),
-                      child: const Icon(Icons.filter_list_rounded),
-                    ),
-                    tooltip: 'Filters',
-                  ),
-                  if (state.characters.isNotEmpty)
-                    IconButton(
-                      onPressed: () => _exportToExcel(state.characters),
-                      icon: const Icon(Icons.download_rounded),
-                      tooltip: 'Export to Excel',
-                    ),
-                ],
-              );
+              if (state.characters.isNotEmpty) {
+                return IconButton(
+                  onPressed: _exportToExcel,
+                  icon: const Icon(Icons.download_rounded),
+                  tooltip: 'Export to Excel',
+                );
+              }
+              return const SizedBox.shrink();
             },
           ),
         ],
       ),
-      body: BlocBuilder<CharacterCubit, CharacterState>(
-        builder: (context, state) {
-          // Loading state with no data
-          if (state.status == CharacterStatus.loading &&
-              state.characters.isEmpty) {
-            return const ShimmerLoading();
-          }
+      body: Column(
+        children: [
+          // SearchBar always visible
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: BlocBuilder<CharacterCubit, CharacterState>(
+              builder: (context, state) {
+                final hasFilters = state.statusFilter != null || state.genderFilter != null;
+                return SearchBarWidget(
+                  onFilterPressed: () => _showFilterSheet(context, state),
+                  hasActiveFilters: hasFilters,
+                );
+              },
+            ),
+          ),
+          Expanded(
+            child: BlocBuilder<CharacterCubit, CharacterState>(
+              builder: (context, state) {
+                // Loading state with no data
+                if (state.status == CharacterStatus.loading &&
+                    state.characters.isEmpty) {
+                  return const ShimmerLoading();
+                }
 
-          // Failure state with no data
-          if (state.status == CharacterStatus.failure &&
-              state.characters.isEmpty) {
-            return ErrorStateWidget(
-              message: state.errorMessage ?? 'Something went wrong',
-              onRetry: () =>
-                  context.read<CharacterCubit>().getCharacters(isRefresh: true),
-            );
-          }
+                // Failure state with no data
+                if (state.status == CharacterStatus.failure &&
+                    state.characters.isEmpty) {
+                  return ErrorStateWidget(
+                    message: state.errorMessage ?? 'Something went wrong',
+                    onRetry: () =>
+                        context.read<CharacterCubit>().getCharacters(isRefresh: true),
+                  );
+                }
 
-          // Empty state (search or filter returned no results)
-          if (state.characters.isEmpty && state.status != CharacterStatus.loading) {
-            return EmptyStateWidget(
-              title: 'No Characters Found',
-              message: state.hasActiveFilters
-                  ? 'Try adjusting your search or filters'
-                  : 'No characters available',
-              icon: state.hasActiveFilters ? Icons.filter_list : Icons.search_off,
-              onRetry: state.hasActiveFilters
-                  ? () => context.read<CharacterCubit>().clearFilters()
-                  : null,
-              retryLabel: state.hasActiveFilters ? 'Clear Filters' : null,
-            );
-          }
+                // Empty state (search or filter returned no results)
+                if (state.characters.isEmpty && state.status != CharacterStatus.loading) {
+                  final isSearchActive = state.search.isNotEmpty;
+                  return EmptyStateWidget(
+                    title: 'No characters found',
+                    message: isSearchActive ? 'Try another search keyword.' : 'No characters available',
+                    icon: isSearchActive ? Icons.search_off : Icons.filter_list,
+                    showClearSearch: isSearchActive,
+                    onRetry: () => context.read<CharacterCubit>().clearSearch(),
+                  );
+                }
 
-          // Success state with data
-          return Stack(
-            children: [
-              RefreshIndicator(
-                onRefresh: _onRefresh,
-                color: AppColors.primary,
-                child: CustomScrollView(
-                  controller: _scrollController,
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  slivers: [
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        child: const SearchBarWidget(),
-                      ),
-                    ),
-                    // Error banner during pagination
-                    if (state.errorMessage != null &&
-                        state.errorMessage!.isNotEmpty &&
-                        state.characters.isNotEmpty)
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.md,
-                            vertical: AppSpacing.sm,
+                // Success state with data
+                return RefreshIndicator(
+                  onRefresh: _onRefresh,
+                  color: AppColors.primary,
+                  child: CustomScrollView(
+                    controller: _scrollController,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    slivers: [
+                      // Error banner during pagination
+                      if (state.errorMessage != null &&
+                          state.errorMessage!.isNotEmpty &&
+                          state.characters.isNotEmpty)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md,
+                              vertical: AppSpacing.sm,
+                            ),
+                            child: _buildErrorBanner(context, state),
                           ),
-                          child: _buildErrorBanner(context, state),
                         ),
-                      ),
-                    // Character list
-                    SliverPadding(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            // Loading indicator at the end
-                            if (index >= state.characters.length) {
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: AppSpacing.lg,
-                                ),
-                                child: state.isLoadingMore
-                                    ? const Center(
-                                        child: CircularProgressIndicator(),
-                                      )
-                                    : const SizedBox.shrink(),
-                              );
-                            }
-
-                            final character = state.characters[index];
-                            return CharacterCard(
-                              character: character,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        CharacterDetailsPage(character: character),
+                      // Character list
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                        sliver: SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              // Loading indicator at the end
+                              if (index >= state.characters.length) {
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: AppSpacing.lg,
                                   ),
+                                  child: state.isLoadingMore
+                                      ? const Center(
+                                          child: CircularProgressIndicator(),
+                                        )
+                                      : const SizedBox.shrink(),
                                 );
-                              },
-                            );
-                          },
-                          childCount: state.characters.length +
-                              (state.hasReachedMax ? 0 : 1),
+                              }
+
+                              final character = state.characters[index];
+                              return CharacterCard(
+                                character: character,
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          CharacterDetailsPage(character: character),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                            childCount: state.characters.length +
+                                (state.hasReachedMax ? 0 : 1),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              // Scroll-to-top FAB
-              if (_showScrollToTop)
-                Positioned(
-                  bottom: AppSpacing.lg,
-                  right: AppSpacing.lg,
-                  child: FloatingActionButton(
-                    mini: true,
-                    onPressed: _scrollToTop,
-                    tooltip: 'Scroll to top',
-                    child: const Icon(Icons.arrow_upward_rounded),
+                    ],
                   ),
-                ),
-            ],
-          );
-        },
+                );
+              },
+            ),
+          ),
+        ],
       ),
+      floatingActionButton: _showScrollToTop
+          ? FloatingActionButton(
+              mini: true,
+              onPressed: _scrollToTop,
+              tooltip: 'Scroll to top',
+              child: const Icon(Icons.arrow_upward_rounded),
+            )
+          : null,
     );
   }
 
