@@ -1,9 +1,10 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:excel/excel.dart';
+import 'package:file_saver/file_saver.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../../features/character/data/models/character_model.dart';
 
@@ -59,18 +60,28 @@ class ExcelExportService {
             .value = TextCellValue(character.location);
       }
 
-      // Save file
-      final directory = await getApplicationDocumentsDirectory();
-      final timestamp = DateFormat('yyyy_MM_dd_HH_mm_ss').format(DateTime.now());
-      final fileName = 'characters_$timestamp.xlsx';
-      final filePath = '${directory.path}/$fileName';
+      // Save file with meaningful filename to Downloads folder
+      final timestamp = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final fileName = 'Report_$timestamp.xlsx';
+      final bytes = Uint8List.fromList(excel.encode()!);
 
-      final file = File(filePath);
-      await file.writeAsBytes(excel.encode()!);
+      // Use FileSaver to save to Downloads folder
+      final savedPath = await FileSaver.instance.saveAs(
+        name: fileName,
+        bytes: bytes,
+        ext: 'xlsx',
+        mimeType: MimeType.microsoftExcel,
+      );
 
-      return filePath;
+      if (savedPath != null) {
+        // Automatically open the file
+        await openFile(savedPath);
+        return savedPath;
+      }
+
+      return null;
     } catch (e) {
-      rethrow;
+      throw Exception('Failed to export Excel file: ${e.toString()}');
     }
   }
 

@@ -108,19 +108,32 @@ class _HomeViewState extends State<HomeView> {
       context: context,
       builder: (context) => AlertDialog(
         icon: const Icon(Icons.download_rounded, size: 48, color: AppColors.primary),
-        title: const Text('Export to Excel'),
-        content: const Text(
-          'An Excel file will be generated and saved on your device. '
-          'This may take a moment depending on the number of characters.',
+        title: Text(
+          'Export to Excel',
+          style: AppTextStyles.title,
+        ),
+        content: Text(
+          'Export all characters to Excel? This may take a few seconds.',
+          style: AppTextStyles.body.copyWith(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? AppColors.darkTextSecondary
+                : AppColors.lightTextSecondary,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: AppTextStyles.bodyMedium,
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Export'),
+            child: Text(
+              'Export',
+              style: AppTextStyles.bodyMedium,
+            ),
           ),
         ],
       ),
@@ -165,53 +178,33 @@ class _HomeViewState extends State<HomeView> {
 
       if (filePath != null && mounted) {
         // Show success dialog
-        final shouldOpen = await showDialog<bool>(
+        await showDialog(
           context: context,
           builder: (context) => AlertDialog(
             icon: const Icon(Icons.check_circle_rounded, size: 48, color: AppColors.success),
-            title: const Text('Export Successful'),
-            content: const Text(
-              'Your characters have been exported to Excel successfully.',
+            title: Text(
+              'Export Successful',
+              style: AppTextStyles.title,
+            ),
+            content: Text(
+              'Your Excel file has been generated successfully.',
+              style: AppTextStyles.body.copyWith(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.lightTextSecondary,
+              ),
             ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Close'),
-              ),
               ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Open File'),
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'OK',
+                  style: AppTextStyles.bodyMedium,
+                ),
               ),
             ],
           ),
         );
-
-        if (shouldOpen == true && mounted) {
-          final result = await ExcelExportService.openFile(filePath);
-          
-          if (mounted) {
-            if (result.type.toString().contains('done')) {
-              // File opened successfully
-              debugPrint('File opened successfully');
-            } else if (result.type.toString().contains('fileNotFound')) {
-              messenger.showSnackBar(
-                const SnackBar(
-                  content: Text('File not found. Please try exporting again.'),
-                  backgroundColor: AppColors.error,
-                ),
-              );
-            } else {
-              // Show friendly message for other errors
-              messenger.showSnackBar(
-                const SnackBar(
-                  content: Text('Unable to open file. Please check your file manager.'),
-                  backgroundColor: AppColors.error,
-                  duration: Duration(seconds: 3),
-                ),
-              );
-            }
-          }
-        }
       }
     } catch (e) {
       // Close loading dialog if still open
