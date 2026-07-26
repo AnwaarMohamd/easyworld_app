@@ -114,7 +114,7 @@ git clone https://github.com/AnwaarMohamd/easyworld_app#eazyworld_app
 Go to the project
 
 ```bash
-cd YOUR_REPOSITORY
+cd eazyworld_app
 ```
 
 Install packages
