@@ -17,6 +17,7 @@ class ShimmerLoading extends StatelessWidget {
       highlightColor: AppColors.primary.withValues(alpha: 0.2),
       enabled: true,
       child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         itemCount: itemCount,
         itemBuilder: (context, index) => _buildShimmerCard(),
       ),
